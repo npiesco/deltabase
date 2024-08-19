@@ -252,7 +252,7 @@ class delta:
         table_path = join(self.__delta_source, database, table)
         data = self.sql(f"select * from {table}", dtype="polars")
         
-        options = dict(mode="overwrite", delta_write_options=dict(writer_properties=()))
+        options = dict(mode="overwrite", delta_write_options=dict(writer_properties=dict()))
         if partition_by: options["delta_write_options"]["partition_by"] = partition_by
         if force: options["delta_write_options"]["schema_mode"] = "overwrite"
         if data_page_size_limit: options["delta_write_options"]["writer_properties"]["data_page_size_limit"] = data_page_size_limit
