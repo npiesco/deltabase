@@ -2,7 +2,7 @@ try:
     from IPython.core.magic import Magics, magics_class, cell_magic
     from IPython import get_ipython
 except ImportError:
-    raise ImportError("NotAWizardError: install `pip install deltabase[magic]` to use magic.")
+    raise ImportError("`ipython` required for magic.")
 
 from . import delta
 

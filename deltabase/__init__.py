@@ -69,7 +69,7 @@ class delta:
         delta_cls.config = config
 
         try: from .magic import enable; enable(delta_cls)
-        except ImportError as e: debugger.error(e)
+        except ImportError as e: pass
 
         if not exists(path) or "://" in path: return delta_cls
         
