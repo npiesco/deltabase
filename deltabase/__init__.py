@@ -20,8 +20,9 @@ from types import LambdaType
 from typing import TypeVar, Type
 
 from polars import SQLContext, DataFrame, LazyFrame, sql_expr, scan_delta, struct, coalesce, from_dicts, from_dict
+from deltalake import WriterProperties
 from datetime import datetime
-from os.path import exists, join
+from os.path import exists, isdir, join
 from os import listdir
 
 from deltalake.exceptions import TableNotFoundError
@@ -34,6 +35,7 @@ T = TypeVar("T", bound="delta")
 
 class delta_config:
     dtype:str="json" 
+    writer_properties:WriterProperties = WriterProperties()
 
 class delta:
     __delta_source:str
@@ -74,11 +76,14 @@ class delta:
         if not exists(path) or "://" in path: return delta_cls
         
         for database in listdir(delta_cls.__delta_source):
-            for table in listdir(join(delta_cls.__delta_source, database)):
-                table_path = join(delta_cls.__delta_source, database, table)
-                if exists(table_path):
-                    try: delta_cls.register(database=database, table=table)
-                    except Exception as e: raise e
+            path = join(delta_cls.__delta_source, database)
+            if isdir(path):
+                for table in listdir(join(delta_cls.__delta_source, database)):
+                    if not table.startswith("."):
+                        table_path = join(delta_cls.__delta_source, database, table)
+                        if exists(table_path):
+                            try: delta_cls.register(database=database, table=table)
+                            except Exception as e: raise e
 
         return delta_cls
 
@@ -234,7 +239,6 @@ class delta:
         table:str,
         force:bool=False,
         partition_by:list[str]=None,
-        data_page_size_limit:int=None,
         database:str="default",
     ) -> Exception:
         """ persists the current state of a table in the sql context to the delta source, with optional schema or partitioning options.
@@ -252,10 +256,12 @@ class delta:
         table_path = join(self.__delta_source, database, table)
         data = self.sql(f"select * from {table}", dtype="polars")
         
-        options = dict(mode="overwrite", delta_write_options=dict(writer_properties=dict()))
+        options = {"mode":"overwrite"}
+        options.setdefault("delta_write_options", {})
+        options["delta_write_options"]["writer_properties"] = self.config.writer_properties
+
         if partition_by: options["delta_write_options"]["partition_by"] = partition_by
         if force: options["delta_write_options"]["schema_mode"] = "overwrite"
-        if data_page_size_limit: options["delta_write_options"]["writer_properties"]["data_page_size_limit"] = data_page_size_limit
         
         try: data.write_delta(table_path, **options)
         except Exception as e: return e
