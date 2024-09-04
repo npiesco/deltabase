@@ -194,3 +194,9 @@ def test_override_dtype(db):
     db.upsert(table="test_table", primary_key="id", data=dict(id=5, name="a"))
     result = db.sql("select * from test_table")
     assert isinstance(result, DataFrame)
+
+def test_collect_schema(db):
+    db.config.dtype = "polars"
+    db.upsert(table="test_table", primary_key="id", data=dict(id=5, name="a"))
+    schema = db.schema(table="test_table")
+    assert schema == {'id': int, 'name': str}

@@ -19,7 +19,7 @@
 from types import LambdaType
 from typing import TypeVar, Type
 
-from polars import SQLContext, DataFrame, LazyFrame, sql_expr, scan_delta, struct, coalesce, from_dicts, from_dict
+from polars import SQLContext, DataFrame, LazyFrame, Schema, sql_expr, scan_delta, struct, coalesce, from_dicts, from_dict
 from deltalake import WriterProperties
 from datetime import datetime
 from os.path import exists, isdir, join
@@ -40,6 +40,7 @@ class delta_config:
 class delta:
     __delta_source:str
     __delta_sql_context:SQLContext=SQLContext(frames=[])
+    __delta_sql_context_schema:dict[str, Schema]={}
     config:delta_config
 
     @property
@@ -48,18 +49,18 @@ class delta:
 
             returns a list of table names available in the sql context.
 
-
             >>> db.tables  # output: ["table_1", "table_2"]
         """
         return self.__delta_sql_context.tables()
 
     @classmethod
-    def connect(cls: Type[T], path:str, config:delta_config=delta_config()) -> T:
-        """ loads tables from the local path if provided, otherwise connects to a remote source.
+    def connect(cls: Type[T], path:str, config:delta_config=delta_config(), scan_local_dir:bool=True) -> T:
+        """ connects to a remote source if provided, or local path, sets config, and automatically scans for tables.
 
             **args**:
                 - **path**: the file path or uri to connect to, can be a local directory or remote storage.
                 - **config**: `optional` configuration settings for the delta instance. default is an instance of `delta_config`.
+                - **scan_local_dir**: `optional` automatically scan for tables when a local directory is provided. default is `true`
                 
             >>> db = delta.connect(path="local_path/mydelta")
             >>> db = delta.connect(path="az://<container>/<path>")
@@ -73,8 +74,8 @@ class delta:
         try: from .magic import enable; enable(delta_cls)
         except ImportError as e: pass
 
-        if not exists(path) or "://" in path: return delta_cls
-        
+        if not exists(path) or "://" in path or not scan_local_dir: return delta_cls
+
         for database in listdir(delta_cls.__delta_source):
             path = join(delta_cls.__delta_source, database)
             if isdir(path):
@@ -116,7 +117,11 @@ class delta:
         options = dict()
         if pyarrow_options: options["pyarrow_options"] = pyarrow_options
         if isinstance(version, int|str|datetime): options["version"] = version
-        try: self.__delta_sql_context.register(alias if alias else table, data if isinstance(data, (DataFrame, LazyFrame)) else scan_delta(table_path, **options))
+        try:
+            if alias: table = alias
+            if not isinstance(data, (DataFrame, LazyFrame)): data = scan_delta(table_path, **options)
+            self.__delta_sql_context.register(table, data)
+            self.__delta_sql_context_schema[table] = data.collect_schema()
         except (TableNotFoundError, FileNotFoundError) as e: return e
     
     def __sync_data(self, primary_key:str, target_data:LazyFrame, source_data:LazyFrame) -> LazyFrame:
@@ -277,3 +282,16 @@ class delta:
             >>> db.checkout(database="mydatabase", table="mytable", version=1)
         """
         return self.register(database=database, table=table, version=version)
+    
+    def schema(self, table:str) -> Schema|None:
+        """ reloads a previous version of a table from the delta source into the sql context.
+
+            **args**:
+            - **table**: the name of the table.
+            - **database**: `optional` name of the database. default is `'default'`.
+        
+            >>> db.schema(table="mytable")
+        """
+        schema = self.__delta_sql_context_schema.get(table)
+        if schema: return schema.to_python()
+        return None

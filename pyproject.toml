@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deltabase"
-version = "0.4.5"
+version = "0.5.5"
 description = ""
 authors = ["uname-n <noreply@github.com>"]
 readme = "README.md"
@@ -16,6 +16,7 @@ pytest = "^8.3.2"
 mkdocs = "^1.6.0"
 mkdocs-material = "^9.5.31"
 ipython = "^8.26.0"
+openai = "^1.43.0"
 
 [build-system]
 requires = ["poetry-core"]
