@@ -48,13 +48,13 @@ class magic (Magics):
             {"role": "system", "content": (
                 "answer the user's question. "
                 "below is the data they have access to. "
-                "data can be accessed via sql."
+                "data can be accessed via sql.\n[chat_history]\n"
             )},
-            {"role": "user", "content": f"[question]\n{cell}\n[available data]" + context}
         ]
         for question, answer in self.__openai_chat_history:
             messages.append({"role": "user", "content":question})
             messages.append({"role": "assistant", "content":answer})
+        messages.append({"role": "user", "content": f"[question]\n{cell}\n[available data]" + context})
 
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini",
