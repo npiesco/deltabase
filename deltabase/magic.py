@@ -29,8 +29,9 @@ from json import dumps
 class magic (Magics):
     def __init__(self, shell, delta:delta):
         super(magic, self).__init__(shell)
-        self.client = OpenAI()
         self.delta = delta
+        self.__openai_chat_history = []
+        self.client = OpenAI()
 
     @cell_magic
     def sql(self, line, cell):
@@ -38,28 +39,31 @@ class magic (Magics):
     
     @cell_magic
     def ai(self, line, cell):
-        context = (
-            "answer the users question. "
-            "below is the data they have access to. "
-            f"data can be accessed via sql.\n[question]\n{cell}\n[available data]"
-        )
+        context = ""
         for table in self.delta.tables:
             schema = self.delta.schema(table=table)
             if schema: context += f"- {table}: {schema}\n"
 
+        messages = [
+            {"role": "system", "content": (
+                "answer the user's question. "
+                "below is the data they have access to. "
+                "data can be accessed via sql."
+            )},
+            {"role": "user", "content": f"[question]\n{cell}\n[available data]" + context}
+        ]
+        for question, answer in self.__openai_chat_history:
+            messages.append({"role": "user", "content":question})
+            messages.append({"role": "assistant", "content":answer})
+
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": (
-                    "answer the user's question. "
-                    "below is the data they have access to. "
-                    "data can be accessed via sql."
-                )},
-                {"role": "user", "content": "[question]\n{cell}\n[available data]" + context}
-            ]
+            messages=messages
         )
 
-        return display(Markdown(completion.choices[0].message.content))
+        response = completion.choices[0].message.content
+        self.__openai_chat_history.append((cell, response))
+        return display(Markdown(response))
 
 def enable(delta:delta):
     ipython = get_ipython()
