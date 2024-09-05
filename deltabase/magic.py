@@ -33,13 +33,22 @@ class magic (Magics):
 
     @cell_magic
     def sql(self, line, cell):
-        return self.delta.sql(query=cell, dtype="polars")
+        data = self.delta.sql(query=cell, dtype="polars")
+
+        args = line.split(" ")
+        if "--table" in line and "--key" in line: 
+            table = args[args.index("--table")+1]
+            key = args[args.index("--key")+1]
+            if "--database" in line: database = args[args.index("--upsert")+1]
+            else: database = "default"
+            self.delta.upsert(database=database, table=table, primary_key=key, data=data)
+
+        return data
     
     @cell_magic
     def ai(self, line, cell):        
         try: from openai import OpenAI
         except: raise ImportError("`openai` package required for `ai` magic.")
-            
         client = OpenAI()
 
         context = ""
@@ -55,12 +64,13 @@ class magic (Magics):
             )},
             {"role": "system", "content": f"here is the data available to the user.\n" + context}
         ]
+
         for question, answer in self.__openai_chat_history:
             messages.append({"role": "user", "content":question})
             messages.append({"role": "assistant", "content":answer})
         messages.append({"role": "user", "content":cell})
 
-        if "--dry-run" in line: return display(Markdown(f"```json\n{dumps(messages, indent=4)}\n```"))
+        if "--debug" in line: return display(Markdown(f"```json\n{dumps(messages, indent=4)}\n```"))
         
         completion = client.chat.completions.create(
             model=self.delta.config.ai_model,
