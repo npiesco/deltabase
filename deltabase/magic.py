@@ -14,12 +14,11 @@
 #     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 try:
-    from IPython.core.magic import Magics, magics_class, cell_magic
+    from IPython.core.magic import Magics, magics_class, cell_magic, line_magic
     from IPython.display import Markdown, display
     from IPython import get_ipython
-    from openai import OpenAI
 except ImportError:
-    raise ImportError("`ipython` and `openai` required for magic.")
+    raise ImportError("`ipython` package required for magic.")
 
 from . import delta
 
@@ -29,16 +28,20 @@ from json import dumps
 class magic (Magics):
     def __init__(self, shell, delta:delta):
         super(magic, self).__init__(shell)
-        self.delta = delta
         self.__openai_chat_history = []
-        self.client = OpenAI()
+        self.delta = delta
 
     @cell_magic
     def sql(self, line, cell):
         return self.delta.sql(query=cell, dtype="polars")
     
     @cell_magic
-    def ai(self, line, cell):
+    def ai(self, line, cell):        
+        try: from openai import OpenAI
+        except: raise ImportError("`openai` package required for `ai` magic.")
+            
+        client = OpenAI()
+
         context = ""
         for table in self.delta.tables:
             schema = self.delta.schema(table=table)
@@ -47,16 +50,19 @@ class magic (Magics):
         messages = [
             {"role": "system", "content": (
                 "answer the user's question. "
-                "below is the data they have access to. "
-                "data can be accessed via sql.\n[chat_history]\n"
+                "below is the data they have access to."
+                "data can be accessed via sql.\n"
             )},
+            {"role": "system", "content": f"here is the data available to the user.\n" + context}
         ]
         for question, answer in self.__openai_chat_history:
             messages.append({"role": "user", "content":question})
             messages.append({"role": "assistant", "content":answer})
-        messages.append({"role": "user", "content": f"[question]\n{cell}\n[available data]" + context})
+        messages.append({"role": "user", "content":cell})
 
-        completion = self.client.chat.completions.create(
+        if "--debug" in line: return display(Markdown(f"```json\n{dumps(messages, indent=4)}\n```"))
+        
+        completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages
         )
@@ -64,6 +70,10 @@ class magic (Magics):
         response = completion.choices[0].message.content
         self.__openai_chat_history.append((cell, response))
         return display(Markdown(response))
+
+    @line_magic
+    def ai_clear_history(self, line):
+        self.__openai_chat_history = []
 
 def enable(delta:delta):
     ipython = get_ipython()
