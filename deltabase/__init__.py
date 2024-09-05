@@ -36,6 +36,7 @@ T = TypeVar("T", bound="delta")
 class delta_config:
     dtype:str="json" 
     writer_properties:WriterProperties = WriterProperties()
+    ai_model:str="gpt-4o-mini"
 
 class delta:
     __delta_source:str

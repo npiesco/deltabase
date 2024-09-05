@@ -60,10 +60,10 @@ class magic (Magics):
             messages.append({"role": "assistant", "content":answer})
         messages.append({"role": "user", "content":cell})
 
-        if "--debug" in line: return display(Markdown(f"```json\n{dumps(messages, indent=4)}\n```"))
+        if "--dry-run" in line: return display(Markdown(f"```json\n{dumps(messages, indent=4)}\n```"))
         
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=self.delta.config.ai_model,
             messages=messages
         )
 
@@ -72,8 +72,10 @@ class magic (Magics):
         return display(Markdown(response))
 
     @line_magic
-    def ai_clear_history(self, line):
-        self.__openai_chat_history = []
+    def ai_chat(self, line):
+        match line:
+            case "clear": self.__openai_chat_history = []
+            case "undo": self.__openai_chat_history.pop()
 
 def enable(delta:delta):
     ipython = get_ipython()
