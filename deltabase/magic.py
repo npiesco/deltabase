@@ -18,7 +18,7 @@ try:
     from IPython.display import Markdown, display
     from IPython import get_ipython
 except ImportError:
-    raise ImportError("`ipython` package required for magic.")
+    raise ImportError("`deltabase[magic]` package required for magic.")
 
 from . import delta
 
@@ -48,7 +48,7 @@ class magic (Magics):
     @cell_magic
     def ai(self, line, cell):        
         try: from openai import OpenAI
-        except: raise ImportError("`openai` package required for `ai` magic.")
+        except: raise ImportError("`deltabase[ai]` package required for `ai` magic.")
         client = OpenAI()
 
         context = ""
