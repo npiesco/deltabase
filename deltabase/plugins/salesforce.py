@@ -3,10 +3,6 @@ from .base import delta_plugin
 from os import environ as env
 from re import search, findall
 
-from logging import getLogger
-
-debugger = getLogger("deltabase.plugin.salesforce")
-
 from pandas import DataFrame
 from simple_salesforce import Salesforce, format_soql
 from polars import from_pandas
@@ -19,6 +15,7 @@ class CustomSalesforce (Salesforce):
         include_attributes:bool=False,
         **kwargs
     ):
+        query = query.replace("\n", " ").replace("  ", " ").strip()
         attributes = search(r"(?<=SELECT|select)(.*)(?=FROM|from)", query).group() # type: ignore
         relationships = findall(r"([A-z]+\.[A-z]+)", attributes)
 

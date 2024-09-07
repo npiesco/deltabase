@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deltabase"
-version = "0.8.0"
+version = "0.8.2"
 description = ""
 authors = ["uname-n <noreply@github.com>"]
 readme = "README.md"
@@ -10,7 +10,6 @@ packages = [{include = "deltabase"}]
 python = "^3.12"
 polars = "^1.6.0"
 deltalake = "^0.19.0"
-
 ipython = {version="^8.26.0", optional=true}
 openai = {version="^1.43.0", optional=true}
 pandas = {version="^2.2.2", optional=true}
