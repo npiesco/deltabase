@@ -1,4 +1,6 @@
+from polars import DataFrame
+
 class delta_plugin:
-    @staticmethod
-    def register(*args, **kwargs):
+    @classmethod
+    def register(cls, *args, **kwargs) -> DataFrame:
         pass

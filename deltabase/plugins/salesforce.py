@@ -7,7 +7,11 @@ from pandas import DataFrame
 from simple_salesforce import Salesforce, format_soql
 from polars import from_pandas
 
-class CustomSalesforce (Salesforce):
+class salesforce (Salesforce, delta_plugin):
+    format = format_soql
+    select = lambda object_name, select: "SELECT {select} FROM {object_name}".format(select=", ".join(select), object_name=object_name) 
+    where = lambda field, match: f" WHERE {field} IN {format_soql('{}', match)}"
+
     def query_all_as_dataframe(self, 
         query:str, 
         include_deleted:bool=False,
@@ -35,21 +39,24 @@ class CustomSalesforce (Salesforce):
         if not include_parent_relationship: dataframe = dataframe.drop(columns=rm)
         
         return dataframe
-
-class salesforce (delta_plugin):
-
-    class soql:
-        format = format_soql
-        select = lambda object_name, select: "SELECT {select} FROM {object_name}".format(select=", ".join(select), object_name=object_name) 
-        where = lambda field, match: f" WHERE {field} IN {format_soql('{}', match)}"
-
-    @staticmethod
+    
+    @classmethod
     def register(
+        cls,
         delta,
         table:str,
         query:str,
     ):
-        client = CustomSalesforce(
+        """ registers the result of a soql query from salesforce as a table into the local sql context.
+
+            **args**:
+                - **delta**: delta instance.
+                - **table**: the name of the table to register.
+                - **query**: soql query to retrieve salesforce data.
+                
+            >>> db.salesforce.register(delta=db, table="salesforce_opportunity", query="select Id, CreatedDate from Opportunity")
+        """
+        client = cls(
             username=env["SALESFORCE_USERNAME"],
             password=env["SALESFORCE_PASSWORD"],
             security_token=env["SALESFORCE_SECURITY_TOKEN"],

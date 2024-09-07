@@ -34,3 +34,6 @@ db.commit(table="mytable")
 result = db.sql("select * from mytable")
 print(result) # output: [{"id": 1, "name": "alice"}]
 ```
+
+## Magic
+**deltabase** provides **magic** for **Jupyter Notebooks** to allow for seamless transitions between **python**, **sql**, and **ai**. [(see example)](https://github.com/uname-n/deltabase/blob/master/examples/magic.ipynb)
