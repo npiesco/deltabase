@@ -21,12 +21,13 @@ class salesforce (Salesforce, delta_plugin):
     ):
         query = query.replace("\n", " ").replace("  ", " ").strip()
         attributes = search(r"(?<=SELECT|select)(.*)(?=FROM|from)", query).group() # type: ignore
-        relationships = findall(r"([A-z]+\.[A-z]+)", attributes)
+        relationships = findall(r"([0-9A-z]+\.[0-9A-z]+)", attributes)
+        columns = [col.replace(".", "_") for col in findall(r"([0-9A-z_.]+)", attributes)]
 
         records = list(self.query_all_iter(query, include_deleted=include_deleted, **kwargs))
         
         dataframe = DataFrame(records)
-        if len(dataframe) == 0: return dataframe
+        if len(dataframe) == 0: return DataFrame(records, columns=columns)
 
         rm = []
         for relationship in relationships:

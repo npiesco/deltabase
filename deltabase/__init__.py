@@ -22,6 +22,8 @@ from typing import Any, TypeVar, Type
 from .plugins import delta_plugin
 
 from polars import SQLContext, DataFrame, LazyFrame, Schema, sql_expr, scan_delta, struct, coalesce, from_dicts, from_dict
+from polars.exceptions import SchemaError
+
 from deltalake import WriterProperties
 from datetime import datetime
 from os.path import exists, isdir, join
@@ -242,7 +244,10 @@ class delta:
         """
         dtype = dtype if dtype else self.config.dtype 
         if lazy: return self.__delta_sql_context.execute(query)
-        data:DataFrame = self.__delta_sql_context.execute(query).collect()
+        try: data:DataFrame = self.__delta_sql_context.execute(query).collect()
+        except SchemaError as e: data:DataFrame = DataFrame(
+                schema=self.__delta_sql_context.execute(query).collect_schema()
+            )
         match dtype:
             case "polars": return data
             case "json": return data.to_dicts()
